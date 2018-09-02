@@ -47369,6 +47369,8 @@ Object.defineProperty(__webpack_exports__, "__esModule", { value: true });
 //
 //
 //
+//
+//
 
 
 /* harmony default export */ __webpack_exports__["default"] = ({
@@ -47383,56 +47385,60 @@ Object.defineProperty(__webpack_exports__, "__esModule", { value: true });
     },
     data: function data() {
         return {
+            state: 'default',
             data: {
                 body: ''
             },
-            comments: [{
-                id: 1,
-                body: "How's it going?",
-                edited: false,
-                created_at: new Date().toLocaleString(),
-                author: {
-                    id: 1,
-                    name: 'Nick Basile'
-                }
-            }, {
-                id: 2,
-                body: "Pretty good. Just making a painting.",
-                edited: false,
-                created_at: new Date().toLocaleString(),
-                author: {
-                    id: 2,
-                    name: 'Bob Ross'
-                }
-            }]
+            comments: []
         };
     },
+    created: function created() {
+        this.fetchComments();
+    },
+
     methods: {
-        updateComment: function updateComment($event) {
-            var index = this.comments.findIndex(function (element) {
-                return element.id === $event.id;
+        startEditing: function startEditing() {
+            this.state = 'editing';
+        },
+        stopEditing: function stopEditing() {
+            this.state = 'default';
+            this.data.body = '';
+        },
+        fetchComments: function fetchComments() {
+            var t = this;
+            axios.get('/comments').then(function (_ref) {
+                var data = _ref.data;
+
+                t.comments = data;
             });
-            this.comments[index].body = $event.body;
+        },
+        updateComment: function updateComment($event) {
+            var t = this;
+            axios.put('/comments/' + $event.id, $event).then(function (_ref2) {
+                var data = _ref2.data;
+
+                t.comments[t.commentIndex($event.id)].body = data.body;
+            });
         },
         deleteComment: function deleteComment($event) {
-            var index = this.comments.findIndex(function (element) {
-                return element.id === $event.id;
+            var t = this;
+            axios.delete('/comments/' + $event.id, $event).then(function () {
+                t.comments.splice(t.commentIndex($event.id), 1);
             });
-            this.comments.splice(index, 1);
         },
         saveComment: function saveComment() {
-            var newComment = {
-                id: this.comments[this.comments.length - 1].id + 1,
-                body: this.data.body,
-                edited: false,
-                created_at: new Date().toLocaleString(),
-                author: {
-                    id: this.user.id,
-                    name: this.user.name
-                }
-            };
-            this.comments.push(newComment);
-            this.data.body = '';
+            var t = this;
+            axios.post('/comments', t.data).then(function (_ref3) {
+                var data = _ref3.data;
+
+                t.comments.unshift(data);
+                t.stopEditing();
+            });
+        },
+        commentIndex: function commentIndex(commentId) {
+            return this.comments.findIndex(function (element) {
+                return element.id === commentId;
+            });
         }
     }
 });
@@ -47540,7 +47546,7 @@ Object.defineProperty(__webpack_exports__, "__esModule", { value: true });
     },
     computed: {
         editable: function editable() {
-            return this.user.id === this.comment.id;
+            return this.user.id === this.comment.author.id;
         }
     },
     methods: {
@@ -47605,9 +47611,11 @@ var render = function() {
         _vm._v(" "),
         _c("div", [
           _c("p", [
-            _vm._v(_vm._s(_vm.comment.author.name) + " "),
-            _c("span", [_vm._v("•")]),
-            _vm._v(_vm._s(_vm.comment.created_at))
+            _vm._v(
+              _vm._s(_vm.comment.author.name) +
+                " • " +
+                _vm._s(_vm.comment.created_at)
+            )
           ])
         ])
       ]
@@ -47637,7 +47645,6 @@ var render = function() {
               expression: "data.body"
             }
           ],
-          staticClass: "border",
           attrs: { placeholder: "Update comment" },
           domProps: { value: _vm.data.body },
           on: {
@@ -47699,10 +47706,11 @@ var render = function() {
             expression: "data.body"
           }
         ],
-        staticClass: "border",
+        class: [_vm.state === "editing" ? "h-24" : "h-10"],
         attrs: { placeholder: "Add a comment" },
         domProps: { value: _vm.data.body },
         on: {
+          focus: _vm.startEditing,
           input: function($event) {
             if ($event.target.composing) {
               return
@@ -47712,18 +47720,33 @@ var render = function() {
         }
       }),
       _vm._v(" "),
-      _c("div", [
-        _c("button", { on: { click: _vm.saveComment } }, [_vm._v("Save")]),
-        _vm._v(" "),
-        _c("button", [_vm._v("Cancel")])
-      ])
+      _c(
+        "div",
+        {
+          directives: [
+            {
+              name: "show",
+              rawName: "v-show",
+              value: _vm.state === "editing",
+              expression: "state === 'editing'"
+            }
+          ],
+          staticClass: "mt-3"
+        },
+        [
+          _c("button", { on: { click: _vm.saveComment } }, [_vm._v("Save")]),
+          _vm._v(" "),
+          _c("button", { on: { click: _vm.stopEditing } }, [_vm._v("Cancel")])
+        ]
+      )
     ]),
     _vm._v(" "),
     _c(
       "div",
-      _vm._l(_vm.comments, function(comment) {
+      _vm._l(_vm.comments, function(comment, index) {
         return _c("comment", {
           key: comment.id,
+          class: [index === _vm.comments.length - 1 ? "" : "mb-6"],
           attrs: { user: _vm.user, comment: comment },
           on: {
             "comment-updated": function($event) {

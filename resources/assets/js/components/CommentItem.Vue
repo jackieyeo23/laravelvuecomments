@@ -6,7 +6,7 @@
                 <button v-if="editable" @click="state = 'editing'">Edit</button>
             </div>
             <div>
-                <p>{{comment.author.name}} <span>&bull;</span>{{ comment.created_at}}</p>
+                <p>{{comment.author.name}} &bull; {{ comment.created_at}}</p>
             </div>
         </div>
         <div v-show="state === 'editing'">
@@ -15,7 +15,7 @@
             </div>
             <textarea v-model="data.body"
                       placeholder="Update comment"
-                      class="border">
+                      >
             </textarea>
             <div>
                 <button @click="saveEdit">Update</button>
@@ -48,7 +48,7 @@
         },
         computed: {
             editable() {
-                return this.user.id === this.comment.id;
+                return this.user.id === this.comment.author.id;
             },
         },
         methods: {

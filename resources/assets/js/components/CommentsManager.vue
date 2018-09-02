@@ -6,18 +6,20 @@
             </div>
             <textarea v-model="data.body"
                       placeholder="Add a comment"
-                      class="border">
+                      :class="[state === 'editing' ? 'h-24' : 'h-10']"
+                      @focus="startEditing">
             </textarea>
-            <div>
+            <div v-show="state === 'editing'" class="mt-3">
                 <button @click="saveComment">Save</button>
-                <button>Cancel</button>
+                <button @click="stopEditing">Cancel</button>
             </div>
         </div>
         <div>
-            <comment v-for="comment in comments"
+            <comment v-for="(comment, index) in comments"
                      :key="comment.id"
                      :user="user"
                      :comment="comment"
+                     :class="[index === comments.length - 1 ? '' : 'mb-6']"
                      @comment-updated="updateComment($event)"
                      @comment-deleted="deleteComment($event)">
             </comment>
@@ -39,59 +41,57 @@
         },
         data: function() {
             return {
+                state: 'default',
                 data: {
                     body: ''
                 },
-                comments: [
-                    {
-                        id: 1,
-                        body: "How's it going?",
-                        edited: false,
-                        created_at: new Date().toLocaleString(),
-                        author: {
-                            id: 1,
-                            name: 'Nick Basile',
-                        }
-                    },
-                    {
-                        id: 2,
-                        body: "Pretty good. Just making a painting.",
-                        edited: false,
-                        created_at: new Date().toLocaleString(),
-                        author: {
-                            id: 2,
-                            name: 'Bob Ross',
-                        }
-                    }
-                ]
+                comments: []
             }
         },
+        created() {
+            this.fetchComments();
+        },
         methods: {
+            startEditing() {
+                this.state = 'editing';
+            },
+            stopEditing() {
+                this.state = 'default';
+                this.data.body = '';
+            },
+            fetchComments() {
+                const t = this;
+                axios.get('/comments')
+                    .then(({data}) => {
+                        t.comments = data;
+                    })
+            },
             updateComment($event) {
-                let index = this.comments.findIndex((element) => {
-                    return element.id === $event.id;
-                });
-                this.comments[index].body = $event.body;
+                const t = this;
+                axios.put(`/comments/${$event.id}`, $event)
+                    .then(({data}) => {
+                        t.comments[t.commentIndex($event.id)].body = data.body;
+                    })
             },
             deleteComment($event) {
-                let index = this.comments.findIndex((element) => {
-                    return element.id === $event.id;
-                });
-                this.comments.splice(index, 1);
+                const t = this;
+                axios.delete(`/comments/${$event.id}`, $event)
+                    .then(() => {
+                        t.comments.splice(t.commentIndex($event.id), 1);
+                    })
             },
             saveComment() {
-                let newComment = {
-                    id: this.comments[this.comments.length - 1].id + 1,
-                    body: this.data.body,
-                    edited: false,
-                    created_at: new Date().toLocaleString(),
-                    author: {
-                        id: this.user.id,
-                        name: this.user.name,
-                    }
-                }
-                this.comments.push(newComment);
-                this.data.body = '';
+                const t = this;
+                axios.post('/comments', t.data)
+                    .then(({data}) => {
+                        t.comments.unshift(data);
+                        t.stopEditing();
+                    })
+            },
+            commentIndex(commentId) {
+                return this.comments.findIndex((element) => {
+                    return element.id === commentId;
+                });
             }
         }
     }
